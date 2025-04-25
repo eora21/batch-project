@@ -19,4 +19,8 @@ export class JobsRepository {
 
     return this.db.getObject<Job>(normalPath);
   }
+
+  findAll() {
+    return this.db.getObject<Job[]>('/jobs');
+  }
 }

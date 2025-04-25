@@ -13,9 +13,14 @@ export class JobsController {
   insertNewJob(@Body() jobRequest: JobsInsertRequestDto) {
     return this.jobsService.add(jobRequest.title, jobRequest.description);
   }
-  
+
   @Get('/:id')
   getSpecificJob(@Param('id') id: string): Promise<Job> {
     return this.jobsService.get(id);
+  }
+
+  @Get()
+  getAllJob() {
+    return this.jobsService.getAll();
   }
 }

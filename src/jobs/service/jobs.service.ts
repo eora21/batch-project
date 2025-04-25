@@ -17,4 +17,8 @@ export class JobsService {
   get(id: string): Promise<Job> {
     return this.jobsRepository.findById(id);
   }
+
+  getAll(): Promise<Job[]> {
+    return this.jobsRepository.findAll();
+  }
 }
