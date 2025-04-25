@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Config, JsonDB } from 'node-json-db';
 import { Job } from '../model/job.entity';
 
@@ -8,5 +8,15 @@ export class JobsRepository {
 
   async save(job: Job) {
     await this.db.push('/jobs[]', job);
+  }
+
+  async findById(id: string) {
+    const normalPath = await this.db.fromPath(`/jobs/${ id }`);
+
+    if (normalPath.endsWith('[-1]')) {
+      throw new NotFoundException();
+    }
+
+    return this.db.getObject<Job>(normalPath);
   }
 }

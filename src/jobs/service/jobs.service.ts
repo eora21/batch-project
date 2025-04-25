@@ -13,4 +13,8 @@ export class JobsService {
     await this.jobsRepository.save(job);
     return job;
   }
+
+  get(id: string): Promise<Job> {
+    return this.jobsRepository.findById(id);
+  }
 }
