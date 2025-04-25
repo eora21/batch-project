@@ -21,4 +21,8 @@ export class JobsService {
   getAll(): Promise<Job[]> {
     return this.jobsRepository.findAll();
   }
+
+  search(title?: string, status?: string) {
+    return this.jobsRepository.findByParams(title, status);
+  }
 }

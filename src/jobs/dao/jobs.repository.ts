@@ -23,4 +23,22 @@ export class JobsRepository {
   findAll() {
     return this.db.getObject<Job[]>('/jobs');
   }
+
+  findByParams(title?: string, status?: string): Promise<Job[]> {
+    if (title === undefined && status === undefined) {
+      return Promise.resolve([]);
+    }
+
+    return this.db.filter<Job>('/jobs', (job: Job): boolean => {
+      if (title && job.title !== title) {
+        return false;
+      }
+
+      if (status && job.status !== status) {
+        return false;
+      }
+
+      return true;
+    });
+  }
 }

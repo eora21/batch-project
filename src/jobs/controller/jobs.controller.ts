@@ -14,6 +14,11 @@ export class JobsController {
     return this.jobsService.add(jobRequest.title, jobRequest.description);
   }
 
+  @Get('/search')
+  searchJob(@Query('title') title?: string, @Query('status') status?: string) {
+    return this.jobsService.search(title, status);
+  }
+  
   @Get('/:id')
   getSpecificJob(@Param('id') id: string): Promise<Job> {
     return this.jobsService.get(id);
