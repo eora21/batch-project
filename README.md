@@ -17,9 +17,9 @@
 
 - [x] NestJS 초기화
 - [x] 데이터 저장소 설정
-- [ ] 작업 생성 API 작성
-    - [ ] jobs 객체 반환
-    - [ ] title, description 필수 유효성 추가
+- [x] 작업 생성 API 작성
+    - [x] jobs 객체 반환
+    - [x] title, description 필수 유효성 추가
 - [ ] 특정 작업 상세 정보 조회 API 작성
     - [ ] jobs 객체 반환
     - [ ] 작업이 존재하지 않으면 404
