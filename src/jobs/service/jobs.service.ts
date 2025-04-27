@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Job } from '../model/job.entity';
 import { JobsRepository } from '../dao/jobs.repository';
+import { JobStatus } from '../model/job.status';
 
 @Injectable()
 export class JobsService {
@@ -22,11 +23,29 @@ export class JobsService {
     return this.jobsRepository.findAll();
   }
 
-  search(title?: string, status?: string) {
-    return this.jobsRepository.findByParams(title, status);
+  search(title?: string, status?: string): Promise<Job[]> {
+    if (title === undefined && status === undefined) {
+      return Promise.resolve([]);
+    }
+
+    const filter = (job: Job): boolean => {
+      if (title && job.title !== title) {
+        return false;
+      }
+
+      if (status && job.status !== status) {
+        return false;
+      }
+
+      return true;
+    };
+
+    return this.jobsRepository.findByParams(filter);
   }
 
-  async update() {
-    await this.jobsRepository.update();
+  updatePendingJobToCompleteJob(): Promise<number> {
+    const filter = (job: Job) => job.status === JobStatus.PENDING;
+    const update = (job: Job) => job.status = JobStatus.COMPLETED;
+    return this.jobsRepository.update(filter, update);
   }
 }

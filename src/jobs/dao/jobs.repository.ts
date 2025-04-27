@@ -17,32 +17,21 @@ export class JobsRepository {
       throw new NotFoundException();
     }
 
-    return this.db.getObject<Job>(normalPath);
+    return structuredClone(await this.db.getObject<Job>(normalPath));
   }
 
-  findAll() {
-    return this.db.getObject<Job[]>('/jobs');
+  async findAll() {
+    return structuredClone(await this.db.getObject<Job[]>('/jobs'));
   }
 
-  findByParams(title?: string, status?: string): Promise<Job[]> {
-    if (title === undefined && status === undefined) {
-      return Promise.resolve([]);
-    }
-
-    return this.db.filter<Job>('/jobs', (job: Job): boolean => {
-      if (title && job.title !== title) {
-        return false;
-      }
-
-      if (status && job.status !== status) {
-        return false;
-      }
-
-      return true;
-    });
+  async findByParams(filterCallback: (job: Job) => boolean): Promise<Job[]> {
+    return structuredClone(await this.db.filter<Job>('/jobs', filterCallback));
   }
 
-  async update() {
+  async update(filterCallback: (job: Job) => boolean, updateCallback: (job: Job) => void) {
+    const filteredJobs = await this.db.filter<Job>('/jobs', filterCallback);
+    filteredJobs.forEach(updateCallback);
     await this.db.save();
+    return filteredJobs.length;
   }
 }
