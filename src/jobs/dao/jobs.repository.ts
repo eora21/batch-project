@@ -41,4 +41,8 @@ export class JobsRepository {
       return true;
     });
   }
+
+  async update() {
+    await this.db.save();
+  }
 }

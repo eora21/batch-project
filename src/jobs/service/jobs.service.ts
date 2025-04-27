@@ -5,7 +5,7 @@ import { JobsRepository } from '../dao/jobs.repository';
 @Injectable()
 export class JobsService {
 
-  constructor(readonly jobsRepository: JobsRepository) {
+  constructor(private readonly jobsRepository: JobsRepository) {
   }
 
   async add(title: string, description: string): Promise<Job> {
@@ -24,5 +24,9 @@ export class JobsService {
 
   search(title?: string, status?: string) {
     return this.jobsRepository.findByParams(title, status);
+  }
+
+  async update() {
+    await this.jobsRepository.update();
   }
 }
