@@ -75,13 +75,17 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     }
 
     if (status === undefined) {
-      return structuredClone(this.titleJobs.get(title));
+      return structuredClone(this.getTitleJobs(title));
     }
 
-    const titleJobs = this.titleJobs.get(title);
+    const titleJobs = this.getTitleJobs(title);
     const statusJobs = new Set(this.statusJobs.get(status));
 
     return structuredClone(titleJobs.filter(titleJob => statusJobs.has(titleJob)));
+  }
+
+  private getTitleJobs(title: string): Job[] {
+    return this.titleJobs.get(title) ?? [];
   }
 
   async updateStatus(beforeStatus: JobStatus, afterStatus: JobStatus): Promise<number> {
