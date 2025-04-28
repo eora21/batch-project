@@ -19,37 +19,41 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     Object.values(JobStatus)
       .forEach(status => this.statusJobs.set(status, []));
 
-    const putIdJob = (job: Job) => {
-      this.idJobs.set(job.id, job);
-    };
-
-    const addTitleJob = (job: Job) => {
-      let titleJobs = this.titleJobs.get(job.title);
-
-      if (titleJobs === undefined) {
-        titleJobs = [];
-        this.titleJobs.set(job.title, titleJobs);
-      }
-
-      titleJobs.push(job);
-    };
-
-    jobs.forEach((job: Job) => {
-      this.addStatusJobs(job);
-      putIdJob(job);
-      addTitleJob(job);
-    });
+    jobs.forEach((job: Job) =>
+      this.cacheJob(job)
+    );
   }
 
   async save(job: Job): Promise<Job> {
     await this.db.push('/jobs[]', job);
-    this.addStatusJobs(job);
+    this.cacheJob(job);
     return structuredClone(job);
   }
 
-  private addStatusJobs(job: Job) {
+  private cacheJob(job: Job) {
+    this.addStatusJob(job);
+    this.putIdJob(job);
+    this.addTitleJob(job);
+  }
+
+  private addStatusJob(job: Job) {
     this.statusJobs.get(job.status)
       .push(job);
+  }
+
+  private putIdJob(job: Job) {
+    this.idJobs.set(job.id, job);
+  }
+
+  private addTitleJob(job: Job) {
+    let titleJobs = this.titleJobs.get(job.title);
+
+    if (titleJobs === undefined) {
+      titleJobs = [];
+      this.titleJobs.set(job.title, titleJobs);
+    }
+
+    titleJobs.push(job);
   }
 
   async findById(id: string) {
