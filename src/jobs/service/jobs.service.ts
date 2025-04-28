@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Job } from '../model/job.entity';
-import { JobsRepository } from '../dao/jobs.repository';
+import { JobsRepository } from '../repository/jobs.repository';
 import { JobStatus } from '../model/job.status';
 
 @Injectable()

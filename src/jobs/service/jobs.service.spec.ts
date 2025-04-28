@@ -1,6 +1,6 @@
 import { JobsService } from './jobs.service';
 import { Test, TestingModule } from '@nestjs/testing';
-import { JobsRepository } from '../dao/jobs.repository';
+import { JobsRepository } from '../repository/jobs.repository';
 
 const mockJobsRepository = {};
 
