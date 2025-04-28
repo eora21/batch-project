@@ -12,7 +12,8 @@ export class JobsController {
 
   @Post()
   insertNewJob(@Body() jobRequest: JobsInsertRequestDto) {
-    return this.jobsService.add(jobRequest.title, jobRequest.description);
+    const { title, description } = jobRequest;
+    return this.jobsService.add(title, description);
   }
 
   @Get('/search')
