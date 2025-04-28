@@ -1,18 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Job } from '../model/job.entity';
-import { JobsRepository } from '../repository/jobs.repository';
 import { JobStatus } from '../model/job.status';
+import { JobsIRepository } from '../repository/jobs.interface.repository';
 
 @Injectable()
 export class JobsService {
 
-  constructor(private readonly jobsRepository: JobsRepository) {
+  constructor(@Inject('JOBS_REPOSITORY') private readonly jobsRepository: JobsIRepository) {
   }
 
   async add(title: string, description: string): Promise<Job> {
     const job = new Job(title, description);
-    await this.jobsRepository.save(job);
-    return job;
+    return await this.jobsRepository.save(job);
   }
 
   get(id: string): Promise<Job> {
@@ -23,29 +22,11 @@ export class JobsService {
     return this.jobsRepository.findAll();
   }
 
-  search(title?: string, status?: string): Promise<Job[]> {
-    if (title === undefined && status === undefined) {
-      return Promise.resolve([]);
-    }
-
-    const filter = (job: Job): boolean => {
-      if (title && job.title !== title) {
-        return false;
-      }
-
-      if (status && job.status !== status) {
-        return false;
-      }
-
-      return true;
-    };
-
-    return this.jobsRepository.findByParams(filter);
+  search(title?: string, status?: JobStatus): Promise<Job[]> {
+    return this.jobsRepository.findByParams(title, status);
   }
 
   updatePendingJobToCompleteJob(): Promise<number> {
-    const filter = (job: Job) => job.status === JobStatus.PENDING;
-    const update = (job: Job) => job.status = JobStatus.COMPLETED;
-    return this.jobsRepository.update(filter, update);
+    return this.jobsRepository.updateStatus(JobStatus.PENDING, JobStatus.COMPLETED);
   }
 }

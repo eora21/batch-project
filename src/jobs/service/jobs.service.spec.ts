@@ -1,6 +1,5 @@
 import { JobsService } from './jobs.service';
 import { Test, TestingModule } from '@nestjs/testing';
-import { JobsRepository } from '../repository/jobs.repository';
 
 const mockJobsRepository = {};
 
@@ -12,7 +11,7 @@ describe('JobsService', () => {
       providers: [
         JobsService,
         {
-          provide: JobsRepository,
+          provide: 'JOBS_REPOSITORY',
           useValue: mockJobsRepository,
         },
       ],
@@ -27,10 +26,5 @@ describe('JobsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-  });
-
-  it('아무런 쿼리 파라미터가 전달되지 않았을 경우, 빈 배열을 반환해야 한다', async () => {
-    const result = await service.search(undefined, undefined);
-    expect(result).toHaveLength(0);
   });
 });
