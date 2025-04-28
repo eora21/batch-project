@@ -14,7 +14,7 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    const jobs = await this.findAll();
+    const jobs = await this.db.getObject<Job[]>('/jobs');
 
     Object.values(JobStatus)
       .forEach(status => this.statusJobs.set(status, []));
