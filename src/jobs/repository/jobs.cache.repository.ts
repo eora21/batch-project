@@ -52,8 +52,8 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
       .push(job);
   }
 
-  findById(id: string) {
-    return Promise.resolve(structuredClone(this.idJobs.get(id)));
+  async findById(id: string) {
+    return structuredClone(this.idJobs.get(id));
   }
 
   async findAll() {
