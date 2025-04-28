@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { JobsInsertRequestDto } from '../dto/jobs.insert.request.dto';
 import { JobsService } from '../service/jobs.service';
 import { Job } from '../model/job.entity';
@@ -22,8 +22,14 @@ export class JobsController {
   }
 
   @Get('/:id')
-  getSpecificJob(@Param('id') id: string): Promise<Job> {
-    return this.jobsService.get(id);
+  async getSpecificJob(@Param('id') id: string): Promise<Job> {
+    const job = await this.jobsService.get(id);
+
+    if (job === undefined) {
+      throw new NotFoundException();
+    }
+
+    return job;
   }
 
   @Get()

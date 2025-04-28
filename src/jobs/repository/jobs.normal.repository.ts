@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JsonDB } from 'node-json-db';
 import { Job } from '../model/job.entity';
 import { JobsIRepository } from './jobs.interface.repository';
@@ -19,7 +19,7 @@ export class JobsNormalRepository implements JobsIRepository {
     const normalPath = await this.db.fromPath(`/jobs/${ id }`);
 
     if (normalPath.endsWith('[-1]')) {
-      throw new NotFoundException();
+      return undefined;
     }
 
     return structuredClone(await this.db.getObject<Job>(normalPath));
