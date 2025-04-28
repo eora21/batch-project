@@ -29,7 +29,9 @@ const jobsRepository: Provider<JobsIRepository> = {
     },
     {
       provide: APP_PIPE,
-      useClass: ValidationPipe,
+      useValue: new ValidationPipe({
+        transform: true,
+      }),
     },
   ],
 })
