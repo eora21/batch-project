@@ -1,4 +1,4 @@
-import { Module, Provider, ValidationPipe } from '@nestjs/common';
+import { Module, Provider } from '@nestjs/common';
 import { JobsController } from './controller/jobs.controller';
 import { JobsService } from './service/jobs.service';
 import { JobsNormalRepository } from './repository/jobs.normal.repository';
@@ -8,6 +8,7 @@ import { JobsBatch } from './batch/jobs.batch';
 import { Config, JsonDB } from 'node-json-db';
 import { JobsCacheRepository } from './repository/jobs.cache.repository';
 import { JobsIRepository } from './repository/jobs.interface.repository';
+import { jobsValidationPipe } from './config/jobs.pipe';
 
 const db: JsonDB = new JsonDB(new Config('jobs', true, true));
 
@@ -29,9 +30,7 @@ const jobsRepository: Provider<JobsIRepository> = {
     },
     {
       provide: APP_PIPE,
-      useValue: new ValidationPipe({
-        transform: true,
-      }),
+      useValue: jobsValidationPipe,
     },
   ],
 })
