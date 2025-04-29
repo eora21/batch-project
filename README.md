@@ -360,13 +360,13 @@ file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이�
     <td>status로 데이터 검색</td>
     <td>286.7745</td>
     <td>279.825359</td>
-    <td>2.42% 개선, 큰 차이 없음</td>
+    <td>큰 차이 없음</td>
   </tr>
   <tr>
     <td>title, status로 데이터 검색</td>
     <td>11.7365</td>
-    <td>16.8407832</td>
-    <td>-43.49%, 로직 개선 필요</td>
+    <td>3.9397168</td>
+    <td>66.43% 개선</td>
   </tr>
   <tr>
     <td>데이터 status 업데이트</td>
@@ -385,6 +385,35 @@ file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이�
 #### title, status 데이터 검색 시간 줄이기
 
 기존 검색 시간은 16.8407832ms로, `JobsNormalRepository`보다 더 느렸습니다.
+
+코드는 다음과 같았습니다.
+
+```typescript
+const titleJobs = this.getTitleJobs(title);
+const statusJobs = new Set(this.statusJobs.get(status));
+
+return structuredClone(titleJobs.filter(titleJob => statusJobs.has(titleJob)));
+```
+
+예상되는 성능 하락 지점은 다음과 같았습니다.
+
+- Set으로 변환하는 과정에서의 오버헤드
+- 직접 필터링하는 과정이 아닌, Set에 속하는지 찾는 과정에서의 오버헤드
+
+따라서 이를 다음과 같이 수정하였습니다.
+
+```typescript
+const titleJobs = this.getTitleJobs(title);
+const statusJobs = this.statusJobs.get(status);
+
+if (titleJobs.length <= statusJobs.length) {
+  return structuredClone(titleJobs.filter(job => job.status === status));
+}
+
+return structuredClone(statusJobs.filter(job => job.title === title));
+```
+
+두 배열의 길이를 비교한 후, 더 짧은 배열 기준으로 내부 필터링을 통해 빠른 속도를 지닐 수 있도록 했습니다.
 
 #### status 업데이트 시 Maximum call stack size exceeded 해결하기
 
@@ -430,7 +459,7 @@ file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이�
         - [x] 미리 title로 구분해두기
         - [x] 테스트 코드를 통해 API 응답 시간 측정해보기
         - [ ] 개선하기
-            - [ ] title, status 데이터 검색 시간 줄이기
+            - [x] title, status 데이터 검색 시간 줄이기
             - [ ] status 업데이트 시 Maximum call stack size exceeded 해결하기
     - [ ] 동시 요청 시 데이터 무결성 보장
     - [ ] 적절한 오류 처리(유효하지 않은 요청 400, 찾을 수 없는 리소스 404 등)
