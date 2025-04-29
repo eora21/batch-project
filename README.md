@@ -336,7 +336,7 @@ file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이�
     <td>데이터 추가</td>
     <td>2.1040752</td>
     <td>1.9601668</td>
-    <td>큰 차이 없음, 이론 상 JobsCacheRepository가 더 느려야 함</td>
+    <td>큰 차이 없음</td>
   </tr>
   <tr>
     <td>id로 데이터 조회</td>
@@ -371,8 +371,8 @@ file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이�
   <tr>
     <td>데이터 status 업데이트</td>
     <td>424.70975</td>
-    <td>Maximum call stack size exceeded로 실행 불가</td>
-    <td>로직 개선 필요</td>
+    <td>431.479216</td>
+    <td>큰 차이 없음</td>
   </tr>
 </table>
 
@@ -380,7 +380,7 @@ file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이�
 
 반면 미리 구분지어 둔 데이터들을 조회하는 경우에는 큰 차이가 존재하는 것을 확인할 수 있었습니다.
 
-### 테스트를 통한 개선
+### 개선
 
 #### title, status 데이터 검색 시간 줄이기
 
@@ -419,6 +419,38 @@ return structuredClone(statusJobs.filter(job => job.title === title));
 
 다량의 Job status를 `pending`에서 `completed`로 업데이트 시, `Maximum call stack size exceeded`이 발생하는 문제가 있었습니다.
 
+```typescript
+afterStatusJobs.push(...beforeStatusJobs);
+```
+
+해당 부분에서 문제가 발생하였습니다. 35만개의 데이터를 스프레드 작업하면서 콜 스택에 문제가 생긴 듯 했습니다.
+
+```typescript
+this.statusJobs.set(afterStatus, beforeStatusJobs.concat(afterStatusJobs));
+```
+
+위와 같이 작성하여 문제를 해결했습니다.
+
+문제가 발생한 확실한 이유를 알고 싶었습니다만, 명확히 설명된 자료를 찾지 못했습니다.
+
+[v8 엔진의 push](https://github.com/v8/v8/blob/main/src/objects/js-array.tq#L282) 코드를 찾아보기도 했으나, 해당 부분의 문제가 아니라 생각되었습니다.
+
+스프레드 과정 중 콜 스택이 어떻게 구성되는지 확실히 알고 싶습니다. 이 부분은 면접에서 따로 질문드리고 싶습니다.
+
+#### 로직 상 다른 문제가 있다면
+
+기존 방식은 status가 추가되고, 이에 따른 배치 작업이 추가되어도 문제되지 않습니다.
+
+하지만 `cacheRepository`의 현 로직은 이에 민감하게 동작합니다. 데이터 정렬을 따로 수행하지 않기 때문입니다.
+
+status로 구분된 배열을 합치거나 나누는 과정에서, 기존 삽입된 데이터들의 정렬이 어그러질 것입니다.
+
+만약 데이터의 순서가 중요하다면 로직 적용 후 정렬이 수행되어야 하겠지만, 이는 오히려 정렬로 인한 오버헤드가 추가됩니다.
+
+따라서 만약 status가 자주 바뀌는 상황의 경우, 기존 방식대로 메모리에 전체적으로 올려두되 필터링을 통해 이를 조회하는 방법이 더 나을 수 있다고 생각됩니다.
+
+이는 다른 값들(id, title)도 마찬가지일 것입니다. 정말 고효율적인 캐싱을 위해서는 InnoDB의 B+Tree와 같은 방식을 택해야 할 수 있습니다.
+
 ## 기타 구현 디테일
 
 ### `Repository`에서 `NotFoundException`을 사용하는 게 옳을까?
@@ -453,14 +485,14 @@ return structuredClone(statusJobs.filter(job => job.title === title));
     - [x] 상태 변경 시 콘솔 또는 파일(logs.txt)에 로그 기록
 - [ ] 성능 및 오류 처리
     - [x] repository 계층을 벗어날 시 반환되는 데이터와 DB의 연관성이 사라지도록 작업
-    - [ ] API 응답 시간 최대한 빠르게
+    - [x] API 응답 시간 최대한 빠르게
         - [x] 미리 pending과 completed 구분해두기
         - [x] 미리 id로 구분해두기
         - [x] 미리 title로 구분해두기
         - [x] 테스트 코드를 통해 API 응답 시간 측정해보기
-        - [ ] 개선하기
+        - [x] 개선하기
             - [x] title, status 데이터 검색 시간 줄이기
-            - [ ] status 업데이트 시 Maximum call stack size exceeded 해결하기
+            - [x] status 업데이트 시 Maximum call stack size exceeded 해결하기
     - [ ] 동시 요청 시 데이터 무결성 보장
     - [ ] 적절한 오류 처리(유효하지 않은 요청 400, 찾을 수 없는 리소스 404 등)
 - [ ] `jobs.json`에 샘플 데이터 셋팅
