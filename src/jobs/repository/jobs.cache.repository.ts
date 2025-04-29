@@ -79,9 +79,13 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     }
 
     const titleJobs = this.getTitleJobs(title);
-    const statusJobs = new Set(this.statusJobs.get(status));
+    const statusJobs = this.statusJobs.get(status);
 
-    return structuredClone(titleJobs.filter(titleJob => statusJobs.has(titleJob)));
+    if (titleJobs.length <= statusJobs.length) {
+      return structuredClone(titleJobs.filter(job => job.status === status));
+    }
+
+    return structuredClone(statusJobs.filter(job => job.title === title));
   }
 
   private getTitleJobs(title: string): Job[] {
