@@ -307,6 +307,89 @@ repository는 해당 데이터를 기반으로 미리 pending jobs와 completed 
 
 다만 메서드 동작을 명확히 하기 위해, 필터와 업데이트 로직이 아닌 '이전 상태'와 '이후 상태'를 요청하도록 메서드를 구축했습니다.
 
+### 기존 repository와 데이터 참조 repository 비교
+
+기존 `repository`는 JsonDB를 단순 사용한 `JobsNormalRepository`입니다.
+
+참조 `repository`는 JsonDB를 통해 load한 데이터들을 id, title, status로 구분하여 참조하는 `JobsCacheRepository`입니다.
+
+`src/jobs/service/jobs.service.spec.ts`를 이용하여 시간을 측정했으며, 5회 이상 반복 후 평균을 매겼습니다.
+
+#### 테스트 주의사항
+
+file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이므로, write 기능은 끄고 동작하도록 구성했습니다.
+
+또한 파일의 메모리 적재 시간이 테스트에 영향을 끼치지 않도록, 모듈 구성 시 JsonDB를 load하도록 구성하였습니다.
+
+데이터는 총 70만개입니다.
+
+비고의 성능 개선율은 `원래 시간 - 개선된 시간` / `원래 시간` * `100`입니다.
+
+<table>
+  <tr>
+    <th>구분</th>
+    <th>JobsNormalRepository</th>
+    <th>JobsCacheRepository</th>
+    <th>비고</th>
+  </tr>
+  <tr>
+    <td>데이터 추가</td>
+    <td>2.1040752</td>
+    <td>1.9601668</td>
+    <td>큰 차이 없음, 이론 상 JobsCacheRepository가 더 느려야 함</td>
+  </tr>
+  <tr>
+    <td>id로 데이터 조회</td>
+    <td>25.071883</td>
+    <td>0.0298836</td>
+    <td>99.88% 개선</td>
+  </tr>
+  <tr>
+    <td>모든 데이터 조회</td>
+    <td>628.816468</td>
+    <td>614.5309</td>
+    <td>모든 데이터 조회는 같은 방식을 채택</td>
+  </tr>
+  <tr>
+    <td>title로 데이터 검색</td>
+    <td>6.394975</td>
+    <td>0.0467918</td>
+    <td>99.27% 개선</td>
+  </tr>
+  <tr>
+    <td>status로 데이터 검색</td>
+    <td>286.7745</td>
+    <td>279.825359</td>
+    <td>2.42% 개선, 큰 차이 없음</td>
+  </tr>
+  <tr>
+    <td>title, status로 데이터 검색</td>
+    <td>11.7365</td>
+    <td>16.8407832</td>
+    <td>-43.49%, 로직 개선 필요</td>
+  </tr>
+  <tr>
+    <td>데이터 status 업데이트</td>
+    <td>424.70975</td>
+    <td>Maximum call stack size exceeded로 실행 불가</td>
+    <td>로직 개선 필요</td>
+  </tr>
+</table>
+
+표를 통해 '다량의 데이터 조회'는 메모리에 적재된 값을 사용하기 때문에 두 방식의 큰 차이가 없다는 것을 확인할 수 있었습니다.
+
+반면 미리 구분지어 둔 데이터들을 조회하는 경우에는 큰 차이가 존재하는 것을 확인할 수 있었습니다.
+
+### 테스트를 통한 개선
+
+#### title, status 데이터 검색 시간 줄이기
+
+기존 검색 시간은 16.8407832ms로, `JobsNormalRepository`보다 더 느렸습니다.
+
+#### status 업데이트 시 Maximum call stack size exceeded 해결하기
+
+다량의 Job status를 `pending`에서 `completed`로 업데이트 시, `Maximum call stack size exceeded`이 발생하는 문제가 있었습니다.
+
 ## 기타 구현 디테일
 
 ### `Repository`에서 `NotFoundException`을 사용하는 게 옳을까?
@@ -345,7 +428,10 @@ repository는 해당 데이터를 기반으로 미리 pending jobs와 completed 
         - [x] 미리 pending과 completed 구분해두기
         - [x] 미리 id로 구분해두기
         - [x] 미리 title로 구분해두기
-        - [ ] 테스트 코드를 통해 API 응답 시간 측정해보기
+        - [x] 테스트 코드를 통해 API 응답 시간 측정해보기
+        - [ ] 개선하기
+            - [ ] title, status 데이터 검색 시간 줄이기
+            - [ ] status 업데이트 시 Maximum call stack size exceeded 해결하기
     - [ ] 동시 요청 시 데이터 무결성 보장
     - [ ] 적절한 오류 처리(유효하지 않은 요청 400, 찾을 수 없는 리소스 404 등)
 - [ ] `jobs.json`에 샘플 데이터 셋팅
