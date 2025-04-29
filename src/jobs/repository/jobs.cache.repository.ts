@@ -102,7 +102,8 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     const afterStatusJobs = this.statusJobs.get(afterStatus);
 
     beforeStatusJobs.forEach((job: Job) => job.status = afterStatus);
-    afterStatusJobs.push(...beforeStatusJobs);
+    this.statusJobs.set(afterStatus, beforeStatusJobs.concat(afterStatusJobs));
+
     beforeStatusJobs.length = 0;
     await this.db.save();
 
