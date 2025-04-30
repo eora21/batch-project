@@ -3,6 +3,7 @@ import { Job } from '../model/job.entity';
 import { JsonDB } from 'node-json-db';
 import { JobStatus } from '../model/job.status';
 import { JobsIRepository } from './jobs.interface.repository';
+import { JobsResponseDto } from '../dto/jobs.response.dto';
 
 @Injectable()
 export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
@@ -57,11 +58,13 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
   }
 
   async findById(id: string) {
-    return structuredClone(this.idJobs.get(id));
+    return new JobsResponseDto(this.idJobs.get(id));
   }
 
   async findAll() {
-    return structuredClone(await this.db.getObject<Job[]>('/jobs'));
+    return (await this.db.getObject<Job[]>('/jobs'))
+      .map(job => new JobsResponseDto(job));
+    ;
   }
 
   async findByParams(title?: string, status?: JobStatus): Promise<Job[]> {
@@ -71,21 +74,26 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     }
 
     if (title === undefined) {
-      return structuredClone(this.statusJobs.get(status));
+      return this.statusJobs.get(status)
+        .map(job => new JobsResponseDto(job));
     }
 
     if (status === undefined) {
-      return structuredClone(this.getTitleJobs(title));
+      return this.getTitleJobs(title)
+        .map(job => new JobsResponseDto(job));
+      ;
     }
 
     const titleJobs = this.getTitleJobs(title);
     const statusJobs = this.statusJobs.get(status);
 
     if (titleJobs.length <= statusJobs.length) {
-      return structuredClone(titleJobs.filter(job => job.status === status));
+      return titleJobs.filter(job => job.status === status)
+        .map(job => new JobsResponseDto(job));
     }
 
-    return structuredClone(statusJobs.filter(job => job.title === title));
+    return statusJobs.filter(job => job.title === title)
+      .map(job => new JobsResponseDto(job));
   }
 
   private getTitleJobs(title: string): Job[] {

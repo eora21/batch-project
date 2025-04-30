@@ -3,6 +3,7 @@ import { JsonDB } from 'node-json-db';
 import { Job } from '../model/job.entity';
 import { JobsIRepository } from './jobs.interface.repository';
 import { JobStatus } from '../model/job.status';
+import { JobsResponseDto } from '../dto/jobs.response.dto';
 
 @Injectable()
 export class JobsNormalRepository implements JobsIRepository {
@@ -12,7 +13,7 @@ export class JobsNormalRepository implements JobsIRepository {
 
   async save(job: Job) {
     await this.db.push('/jobs[]', job);
-    return structuredClone(job);
+    return new JobsResponseDto(job);
   }
 
   async findById(id: string) {
@@ -22,11 +23,12 @@ export class JobsNormalRepository implements JobsIRepository {
       return undefined;
     }
 
-    return structuredClone(await this.db.getObject<Job>(normalPath));
+    return new JobsResponseDto(await this.db.getObject<Job>(normalPath));
   }
 
   async findAll() {
-    return structuredClone(await this.db.getObject<Job[]>('/jobs'));
+    return (await this.db.getObject<Job[]>('/jobs'))
+      .map(job => new JobsResponseDto(job));
   }
 
   async findByParams(title?: string, status?: JobStatus): Promise<Job[]> {
@@ -46,7 +48,8 @@ export class JobsNormalRepository implements JobsIRepository {
       return true;
     };
 
-    return structuredClone(await this.db.filter<Job>('/jobs', filter));
+    return (await this.db.filter<Job>('/jobs', filter))
+      .map(job => new JobsResponseDto(job));
   }
 
   async updateStatus(beforeStatus: JobStatus, afterStatus: JobStatus): Promise<number> {
