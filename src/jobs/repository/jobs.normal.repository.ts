@@ -52,14 +52,9 @@ export class JobsNormalRepository implements JobsIRepository {
       .map(job => new JobsResponseDto(job));
   }
 
-  async updateStatus(beforeStatus: JobStatus, afterStatus: JobStatus): Promise<number> {
-
-    if (beforeStatus === afterStatus) {
-      return 0;
-    }
-
-    const filteredJobs = await this.db.filter<Job>('/jobs', (job: Job) => job.status === beforeStatus);
-    filteredJobs.forEach((job: Job) => job.status = afterStatus);
+  async completePendingJobs(): Promise<number> {
+    const filteredJobs = await this.db.filter<Job>('/jobs', (job: Job) => job.status === JobStatus.PENDING);
+    filteredJobs.forEach((job: Job) => job.status = JobStatus.COMPLETED);
     await this.db.save();
     return filteredJobs.length;
   }

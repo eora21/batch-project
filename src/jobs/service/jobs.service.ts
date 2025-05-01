@@ -28,6 +28,6 @@ export class JobsService {
   }
 
   updatePendingJobToCompleteJob(): Promise<number> {
-    return this.jobsRepository.updateStatus(JobStatus.PENDING, JobStatus.COMPLETED);
+    return this.jobsRepository.completePendingJobs();
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Job } from '../model/job.entity';
-import { JsonDB } from 'node-json-db';
+import { Config, JsonDB } from 'node-json-db';
 import { JobStatus } from '../model/job.status';
 import { JobsIRepository } from './jobs.interface.repository';
 import { JobsResponseDto } from '../dto/jobs.response.dto';
@@ -10,23 +10,32 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
   private readonly statusJobs: Map<JobStatus, Job[]> = new Map();
   private readonly idJobs: Map<string, Job> = new Map();
   private readonly titleJobs: Map<string, Job[]> = new Map();
+  private readonly cacheBufferDb: JsonDB;
 
   constructor(private readonly db: JsonDB) {
+    this.cacheBufferDb = new JsonDB(new Config('cache_buffer_jobs', true, false));
   }
 
   async onModuleInit(): Promise<void> {
-    const jobs = await this.db.getObject<Job[]>('/jobs');
-
     Object.values(JobStatus)
       .forEach(status => this.statusJobs.set(status, []));
 
-    jobs.forEach((job: Job) =>
-      this.cacheJob(job)
-    );
+    if (await this.db.exists('/jobs')) {
+      const jobs = await this.db.getObject<Job[]>('/jobs');
+
+      jobs.forEach((job: Job) =>
+        this.cacheJob(job)
+      );
+    }
+
+    if (await this.cacheBufferDb.exists('/jobs')) {
+      const bufferedPendingJobs = await this.cacheBufferDb.getObject<Job[]>('/jobs');
+      bufferedPendingJobs.forEach((job: Job) => this.addStatusJob(job));
+    }
   }
 
   async save(job: Job): Promise<Job> {
-    await this.db.push('/jobs[]', job);
+    await this.addBuffer(job);
     this.cacheJob(job);
     return structuredClone(job);
   }
@@ -57,6 +66,10 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     titleJobs.push(job);
   }
 
+  private async addBuffer(job: Job) {
+    await this.cacheBufferDb.push('/jobs[]', job);
+  }
+
   async findById(id: string) {
     return new JobsResponseDto(this.idJobs.get(id));
   }
@@ -64,7 +77,6 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
   async findAll() {
     return (await this.db.getObject<Job[]>('/jobs'))
       .map(job => new JobsResponseDto(job));
-    ;
   }
 
   async findByParams(title?: string, status?: JobStatus): Promise<Job[]> {
@@ -81,7 +93,6 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     if (status === undefined) {
       return this.getTitleJobs(title)
         .map(job => new JobsResponseDto(job));
-      ;
     }
 
     const titleJobs = this.getTitleJobs(title);
@@ -100,21 +111,19 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     return this.titleJobs.get(title) ?? [];
   }
 
-  async updateStatus(beforeStatus: JobStatus, afterStatus: JobStatus): Promise<number> {
-    if (beforeStatus === afterStatus) {
-      return 0;
-    }
+  async completePendingJobs(): Promise<number> {
+    const pendingJobs = this.statusJobs.get(JobStatus.PENDING);
+    const pendingStatusJobsCount = pendingJobs.length;
+    const completedJobs = this.statusJobs.get(JobStatus.COMPLETED);
 
-    const beforeStatusJobs = this.statusJobs.get(beforeStatus);
-    const beforeStatusJobsCount = beforeStatusJobs.length;
-    const afterStatusJobs = this.statusJobs.get(afterStatus);
+    pendingJobs.forEach((job: Job) => job.status = JobStatus.COMPLETED);
+    this.statusJobs.set(JobStatus.COMPLETED, pendingJobs.concat(completedJobs));
 
-    beforeStatusJobs.forEach((job: Job) => job.status = afterStatus);
-    this.statusJobs.set(afterStatus, beforeStatusJobs.concat(afterStatusJobs));
+    pendingJobs.length = 0;
 
-    beforeStatusJobs.length = 0;
     await this.db.save();
+    await this.cacheBufferDb.delete('/jobs');
 
-    return beforeStatusJobsCount;
+    return pendingStatusJobsCount;
   }
 }

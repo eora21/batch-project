@@ -252,7 +252,7 @@ function testRepositories(dependencyInjectionRepository: typeof repositories[num
       const pendingLength = (await repository.findByParams(undefined, JobStatus.PENDING)).length;
 
       // when
-      const updateCount = await repository.updateStatus(JobStatus.PENDING, JobStatus.COMPLETED);
+      const updateCount = await repository.completePendingJobs();
 
       // then
       expect(updateCount).toBe(pendingLength);
@@ -264,7 +264,7 @@ function testRepositories(dependencyInjectionRepository: typeof repositories[num
       // given
 
       // when
-      const updateCount = await repository.updateStatus(JobStatus.PENDING, JobStatus.PENDING);
+      const updateCount = await repository.completePendingJobs();
 
       // then
       expect(updateCount).toBe(0);

@@ -11,5 +11,5 @@ export interface JobsIRepository {
 
   findByParams(title?: string, status?: JobStatus): Promise<JobsResponseDto[]>;
 
-  updateStatus(beforeStatus: JobStatus, afterStatus: JobStatus): Promise<number>;
+  completePendingJobs(): Promise<number>;
 }
