@@ -330,8 +330,8 @@ file write는 JsonDB의 FileAdapter를 통해 동일하게 이루어질 것이�
   </tr>
   <tr>
     <td>데이터 추가</td>
-    <td>2.1040752</td>
-    <td>1.9601668</td>
+    <td>409.96885</td>
+    <td>410.9397</td>
     <td>큰 차이 없음</td>
   </tr>
   <tr>
@@ -478,6 +478,20 @@ this.statusJobs.set(afterStatus, beforeStatusJobs.concat(afterStatusJobs));
   </tr>
 </table>
 
+#### 데이터 추가 시 다른 파일 통해 히스토리 관리, 배치 통해 삽입
+
+JsonDB는 메모리에 존재하는 모든 파일을 save하기 때문에, 대량의 데이터가 존재하는 경우 file write 시간이 오래 걸립니다.
+
+따라서 데이터 추가마다 저장을 요청하면 매번 write가 실행되며 시간이 오래 걸릴 수 있습니다.
+
+이를 개선하기 위해 메모리 및 캐시용 file을 유지하다가, 배치가 수행됨에 따라 원래 유지하던 파일에 write하도록 구성했습니다.
+
+캐시용 file을 작성하는 이유는 만약 배치가 동작하지 않거나 동작 전 서버가 다운된 경우에도, 새로 생성된 job들을 유지하기 위해서입니다.
+
+다만 다른 repository로 변경하여 다시 서버를 실행시킨 경우에는 자동으로 복구되지 않을 것입니다. 해당 부분은 어떻게 해결할 수 있을지 여쭙고 싶습니다.
+
+#### 파일이 준비되지 않은 경우 캐싱 과정에서의 문제
+
 ### 총 측정 결과
 
 <table>
@@ -489,9 +503,9 @@ this.statusJobs.set(afterStatus, beforeStatusJobs.concat(afterStatusJobs));
   </tr>
   <tr>
     <td>데이터 추가</td>
-    <td>2.1040752</td>
-    <td>1.9601668</td>
-    <td>큰 차이 없음</td>
+    <td>409.96885</td>
+    <td>1.1888248</td>
+    <td>메모리 및 캐싱용 파일에 기록, 99.71% 개선</td>
   </tr>
   <tr>
     <td>id로 데이터 조회</td>
@@ -588,7 +602,8 @@ status로 구분된 배열을 합치거나 나누는 과정에서, 기존 삽입
             - [x] title, status 데이터 검색 시간 줄이기
             - [x] status 업데이트 시 Maximum call stack size exceeded 해결하기
             - [x] 대량의 데이터 조회 시 오래 걸리는 이유 확인하고 개선하기
-            - [ ] 대량의 데이터 업데이트 시 오래 걸리는 이유 확인하고 개선하기
+            - [x] 데이터 추가 시 file write 최소화할 수 있는 방향 알아보기
+            - [ ] 캐싱용 JsonDB 강결합 해결하기
     - [ ] 동시 요청 시 데이터 무결성 보장
     - [ ] 적절한 오류 처리(유효하지 않은 요청 400, 찾을 수 없는 리소스 404 등)
 - [ ] `jobs.json`에 샘플 데이터 셋팅
