@@ -4,12 +4,14 @@ import { JsonDB } from 'node-json-db';
 import { JobStatus } from '../model/job.status';
 import { JobsIRepository } from './jobs.interface.repository';
 import { JobsResponseDto } from '../dto/jobs.response.dto';
+import AsyncRwLock from 'async-rwlock';
 
 @Injectable()
 export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
   private readonly statusJobs: Map<JobStatus, Job[]> = new Map();
   private readonly idJobs: Map<string, Job> = new Map();
   private readonly titleJobs: Map<string, Job[]> = new Map();
+  private readonly lock = new AsyncRwLock();
 
   constructor(private readonly db: JsonDB, private readonly cacheBufferDb: JsonDB) {
   }
@@ -32,15 +34,34 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     }
   }
 
-  async save(job: Job): Promise<JobsResponseDto> {
-    await this.addBuffer(job);
-    await this.db.push('/jobs[]', job);
-    this.cacheJob(job);
-    return new JobsResponseDto(job);
+  private async getShareLock(callbackFunction: () => Promise<void>) {
+    await this.lock.readLock();
+
+    try {
+      await callbackFunction();
+    } finally {
+      this.lock.unlock();
+    }
   }
 
-  private async addBuffer(job: Job) {
-    await this.cacheBufferDb.push('/jobs[]', job);
+  private async getExclusiveLock(callbackFunction: () => Promise<void>) {
+    await this.lock.writeLock();
+
+    try {
+      await callbackFunction();
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  async save(job: Job): Promise<JobsResponseDto> {
+    await this.getShareLock(async () => {
+      await this.cacheBufferDb.push('/jobs[]', job);
+      await this.db.push('/jobs[]', job);
+    });
+
+    this.cacheJob(job);
+    return new JobsResponseDto(job);
   }
 
   private cacheJob(job: Job) {
@@ -118,7 +139,7 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
 
   async completePendingJobs(): Promise<number> {
     const pendingJobs = this.statusJobs.get(JobStatus.PENDING);
-    const pendingStatusJobsCount = pendingJobs.length;
+    const pendingJobsCount = pendingJobs.length;
     const completedJobs = this.statusJobs.get(JobStatus.COMPLETED);
 
     pendingJobs.forEach((job: Job) => job.status = JobStatus.COMPLETED);
@@ -126,9 +147,11 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
 
     pendingJobs.length = 0;
 
-    await this.db.save();
-    await this.cacheBufferDb.delete('/jobs');
+    await this.getExclusiveLock(async () => {
+      await this.db.save();
+      await this.cacheBufferDb.delete('/jobs');
+    });
 
-    return pendingStatusJobsCount;
+    return pendingJobsCount;
   }
 }
