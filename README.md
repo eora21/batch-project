@@ -1,6 +1,170 @@
 # 프로젝트 실행 방법 (설치, 실행 명령어)
 
+## 성능이 향상되지 않은 일반 repository 사용
+
+`npm run start`
+
+## 성능 향상용 repository 사용
+
+`npm run start:cache`
+
+## 70만개의 모의 데이터를 사용하려면?
+
+기존 `jobs.json` 파일을 삭제하시고, `jobs_700000.json` 파일명을 `jobs.json`으로 변경해주세요.
+
+## 모의 데이터를 직접 생성하려면?
+
+`mock/jobs/jobs.data.mock.ts`를 수정하신 후 실행시켜주시면 됩니다.
+
+(해당 코드는 test 파일로 잡히지 않도록 디렉터리와 파일명을 수정한 상태입니다.)
+
 # API 사용법 (엔드포인트별 요청/응답 예시)
+
+## 새로운 작업 생성
+
+### request
+
+> POST /jobs
+
+```http request
+POST http://localhost:3000/jobs
+Content-Type: application/json
+
+{
+"title": "제목",
+"description": "내용"
+}
+```
+
+### response
+
+> title, description이 존재하지 않으면 400가 반환됩니다.
+
+```http
+HTTP/1.1 201 Created
+
+{
+    "id": "01968f5a-464d-74e8-b652-a7e1baafaa8b",
+    "title": "제목",
+    "description": "내용",
+    "status": "pending"
+}
+```
+
+## 특정 작업 조회
+
+### request
+
+> GET /jobs/:id
+
+```http request
+GET http://localhost:3000/jobs/01966cc3-2e18-704d-a306-e1723557b36b
+```
+
+### response
+
+> path의 id가 존재하지 않으면 404가 반환됩니다.
+
+```http
+HTTP/1.1 200 OK
+
+{
+  "id": "01966cc3-2e18-704d-a306-e1723557b36b",
+  "title": "제목",
+  "description": "내용",
+  "status": "pending"
+}
+```
+
+## 모든 작업 조회
+
+### request
+
+> GET /jobs
+
+```http request
+GET http://localhost:3000/jobs
+```
+
+### response
+
+```http
+HTTP/1.1 200 OK
+
+[
+  {
+    "id": "01966c86-9206-7278-9c45-d168ded95122",
+    "title": "원하는 제목",
+    "description": "내용",
+    "status": "completed"
+  },
+  {
+    "id": "01966c86-9eb0-74be-b71d-3fd38490dcd1",
+    "title": "원하는 제목",
+    "description": "내용",
+    "status": "completed"
+  },
+  {
+    "id": "01966c86-a883-76ed-997b-800538bd194a",
+    "title": "제목",
+    "description": "내용",
+    "status": "pending"
+  },
+  {
+    "id": "01966c9e-052b-720f-9543-775296410177",
+    "title": "제목",
+    "description": "내용",
+    "status": "pending"
+  },
+  {
+    "id": "01966cc3-2e18-704d-a306-e1723557b36b",
+    "title": "제목",
+    "description": "내용",
+    "status": "pending"
+  }
+]
+```
+
+## 상태나 제목으로 작업 검색
+
+### request
+
+> GET /jobs/search?title=:title&status=:status
+
+```http request
+GET http://localhost:3000/jobs/search?title=원하는 제목&status=completed
+```
+
+### response
+
+> title과 status 둘 다 없을 시 빈 배열이 반환됩니다.
+>
+> title만 존재할 시 title로만 필터링됩니다.
+>
+> status만 존재할 시 status로만 필터링됩니다.
+>
+> 둘 다 존재할 시 두 조건을 모두 만족하도록 필터링됩니다.
+> 
+> status가 pending이나 completed가 아닌 경우 400이 반환됩니다.
+
+```http
+HTTP/1.1 200 OK
+
+[
+  {
+    "id": "01966c86-9206-7278-9c45-d168ded95122",
+    "title": "원하는 제목",
+    "description": "내용",
+    "status": "completed"
+  },
+  {
+    "id": "01966c86-9eb0-74be-b71d-3fd38490dcd1",
+    "title": "원하는 제목",
+    "description": "내용",
+    "status": "completed"
+  }
+]
+```
 
 # 구현 관련 상세 설명 및 코멘트
 
@@ -38,6 +202,32 @@ v7은 생성 과정에서 MAC 주소를 사용하지 않으며, 시간순으로 
 
 따라서 매 요청마다 랜덤한 값을 만들면서도, 생성 환경에 영향을 받지 않고, 생성 시간을 유추할 수 있으며, 생성 시간 순으로 정렬이 가능한 v7을 선택하였습니다.
 
+### 무결성 관점
+
+#### JobsCacheRepository에서 배치 작업 도중 Insert가 수행되는 경우
+
+저장 작업: 캐시 버퍼 파일로 기록, 메모리에 기록
+
+배치 작업: 메모리에 기록되었던 값들을 json 파일로 기록, 캐시 버퍼 파일 삭제
+
+배치 작업을 통해 메모리에 기록되었던 값들을 파일로 기록하고 있다고 가정하겠습니다.
+
+저장 작업해서, 요청된 job은 캐시 버퍼 파일에 우선 기록되고 실제 메모리에 담길 준비를 합니다.
+
+배치 작업에서 파일 기록이 끝난 후, 캐시 버퍼 파일 삭제를 요청합니다.
+
+이러한 경우 job은 캐시 버퍼 파일과 json 파일에는 존재하지 않지만, 메모리에만 존재하게 됩니다.
+
+해당 과정 중 서버가 다운된다면, 요청된 job은 그 어디에도 남아있지 않게 됩니다.
+
+이러한 문제를 해결하기 위해서는 두 작업이 서로 간섭되지 않도록 구성해야 합니다.
+
+하나의 락으로만 작업하면 저장 작업들끼리도 영향을 미칠 수 있으리라 판단했습니다.
+
+따라서 저장 작업들에서는 공유락을, 배치 작업에서는 배타락을 획득하도록 구성했습니다.
+
+실제 파일 쓰기 작업은 JsonDB 내부 락을 통해 처리하므로, 로직 상의 아토믹함만 살릴 수 있도록 했습니다.
+
 ## 성능 관리 전략
 
 ### 인덱스 전략을 사용하려면 어떻게 해야 할까?
@@ -53,13 +243,13 @@ v7은 생성 과정에서 MAC 주소를 사용하지 않으며, 시간순으로 
 
 아쉽게도, 그렇지 않았습니다.
 
-```
+```typescript
 public getObject<T>(dataPath: string): Promise<T> {
     return this.getData(dataPath)
 }
 ```
 
-```
+```typescript
 public getData(dataPath: string): Promise<any> {
     return readLockAsync(async () => {
         const path = this.processDataPath(dataPath) // 맨 앞뒤 구분자 자르기
@@ -68,7 +258,7 @@ public getData(dataPath: string): Promise<any> {
 }
 ```
 
-```
+```typescript
 private async retrieveData(dataPath: DataPath, create: boolean = false): Promise<any> {
     await this.load()
 
@@ -150,7 +340,7 @@ private async retrieveData(dataPath: DataPath, create: boolean = false): Promise
 }
 ```
 
-```
+```typescript
 public async load(): Promise<void> {
     if (this.loaded) {
         return
@@ -164,7 +354,7 @@ public async load(): Promise<void> {
 }
 ```
 
-```
+```typescript
 async readAsync(): Promise<any> {
     const data = await this.adapter.readAsync(); // fileAsync 사용
     if (data == null || data === '') {
@@ -175,7 +365,7 @@ async readAsync(): Promise<any> {
 }
 ```
 
-```
+```typescript
 import {readFile, open, FileHandle, mkdir} from "fs/promises";
 
 async readAsync(): Promise<string | null> {
@@ -192,7 +382,7 @@ async readAsync(): Promise<string | null> {
 }
 ```
 
-```
+```typescript
 private readonly dateRegex = new RegExp('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}', 'm') // YYYY-MM-DDTHH:mm:ss
 
 private reviver(key: string, value: any): any {
@@ -490,8 +680,6 @@ JsonDB는 메모리에 존재하는 모든 파일을 save하기 때문에, 대�
 
 다만 다른 repository로 변경하여 다시 서버를 실행시킨 경우에는 자동으로 복구되지 않을 것입니다. 해당 부분은 어떻게 해결할 수 있을지 여쭙고 싶습니다.
 
-#### 파일이 준비되지 않은 경우 캐싱 과정에서의 문제
-
 ### 총 측정 결과
 
 <table>
@@ -591,20 +779,54 @@ status로 구분된 배열을 합치거나 나누는 과정에서, 기존 삽입
 - [x] 매 1분마다 배치 구현
     - [x] `pending` 상태 작업을 `completed`로 업데이트
     - [x] 상태 변경 시 콘솔 또는 파일(logs.txt)에 로그 기록
-- [ ] 성능 및 오류 처리
+- [x] 성능 및 오류 처리
     - [x] repository 계층을 벗어날 시 반환되는 데이터와 DB의 연관성이 사라지도록 작업
     - [x] API 응답 시간 최대한 빠르게
         - [x] 미리 pending과 completed 구분해두기
         - [x] 미리 id로 구분해두기
         - [x] 미리 title로 구분해두기
         - [x] 테스트 코드를 통해 API 응답 시간 측정해보기
-        - [ ] 개선하기
+        - [x] 개선하기
             - [x] title, status 데이터 검색 시간 줄이기
             - [x] status 업데이트 시 Maximum call stack size exceeded 해결하기
             - [x] 대량의 데이터 조회 시 오래 걸리는 이유 확인하고 개선하기
             - [x] 데이터 추가 시 file write 최소화할 수 있는 방향 알아보기
-            - [ ] 캐싱용 JsonDB 강결합 해결하기
-    - [ ] 동시 요청 시 데이터 무결성 보장
-    - [ ] 적절한 오류 처리(유효하지 않은 요청 400, 찾을 수 없는 리소스 404 등)
-- [ ] `jobs.json`에 샘플 데이터 셋팅
-- [ ] 기본 노드 환경에서 실행되도록 세팅
+            - [x] 캐싱용 JsonDB 강결합 해결하기
+    - [x] 동시 요청 시 데이터 무결성 보장
+    - [x] 적절한 오류 처리(유효하지 않은 요청 400, 찾을 수 없는 리소스 404 등)
+- [x] `jobs.json`에 샘플 데이터 셋팅
+- [x] 기본 노드 환경에서 실행되도록 세팅
+
+# 아쉬운 점
+
+## 배치 시 로그 기록 관련한 고민
+
+배치 작업 이후 '업데이트된 job 개수'는 콘솔 출력으로, '업데이트된 job id'를 비롯한 기타 정보들은 파일을 이용하여 로그를 작성해보려 했습니다.
+
+그러나 해당 정보들에 대해 로그를 어디에서 찍어야 할 지 고민이었습니다.
+
+'업데이트된 job id'들을 repository에서 반환, 배치에서 이를 파일에 작성하고 콘솔 출력을 수행하면 쉬웠을 것입니다.
+
+하지만 해당 작업만을 위해 과연 response를 넘기는 게 괜찮은 것인지, 배치에서 콘솔 출력과 로그 파일 작성을 모두 맡는 책임까지 할당하는 게 올바른 것인지 고민이었습니다.
+
+repository가 자체적으로 로그 파일을 남기고, 배치에서 콘솔에 이를 남기는 것도 고려하였습니다. 그러나 이는 repository가 '로그 파일 작성'을 도맡아 해야 하게 됩니다.
+
+이 또한 역할과 책임의 올바른 분배인지 고민이었습니다.
+
+## repository 교체 시 cache_buffer_jobs.json의 역할 무효화에 대해
+
+JobsCacheRepository를 사용하면, 중간에 서버가 다운되더라도 어떠한 job이 추가 요청되었는지를 파악하기 위해 cache_buffer_jobs.json을 운영하고 있습니다.
+
+해당 파일에는 아직 파일 저장이 수행되지 않은 job들이 기록됩니다.
+
+다만, 서버 다운 이후 다른 repository로 교체한다면 해당 파일에 기록된 pending job들이 처리되지 않는 문제가 발생합니다.
+
+이를 해결하기 위해 모든 repository가 cache_buffer_jobs.json를 알고 있는 건 책임의 범위를 벗어난다고 생각했습니다.
+
+실제 운영 환경에서는 이를 어떻게 해결할 수 있을지 궁금합니다.
+
+## 시간 배분 문제
+
+4월 26일에는 사전에 말씀드렸던 이슈에 의해, 4월 30일 이후에는 가족 일정 및 컨디션 문제로 온전한 시간을 사용하지 못 했습니다.
+
+앞으로는 어떠한 상황에서도 일관된 성과를 낼 수 있도록 사전 조율 및 유연한 계획 수립에 더욱 노력하고, 체계적인 컨디션 관리를 병행하여 핵심 업무에 집중할 수 있는 환경을 조성하겠습니다.
