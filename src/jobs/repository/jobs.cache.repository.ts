@@ -32,10 +32,15 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     }
   }
 
-  async save(job: Job): Promise<Job> {
+  async save(job: Job): Promise<JobsResponseDto> {
     await this.addBuffer(job);
+    await this.db.push('/jobs[]', job);
     this.cacheJob(job);
-    return structuredClone(job);
+    return new JobsResponseDto(job);
+  }
+
+  private async addBuffer(job: Job) {
+    await this.cacheBufferDb.push('/jobs[]', job);
   }
 
   private cacheJob(job: Job) {
@@ -62,10 +67,6 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
     }
 
     titleJobs.push(job);
-  }
-
-  private async addBuffer(job: Job) {
-    await this.cacheBufferDb.push('/jobs[]', job);
   }
 
   async findById(id: string) {
