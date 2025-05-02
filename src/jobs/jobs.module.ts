@@ -14,7 +14,14 @@ const db: JsonDB = new JsonDB(new Config('jobs', true, true));
 
 const jobsRepository: Provider<JobsIRepository> = {
   provide: 'JOBS_REPOSITORY',
-  useClass: process.env.NODE_ENV === 'cache' ? JobsCacheRepository : JobsNormalRepository,
+  useFactory: () => {
+    if (process.env.NODE_ENV === 'cache') {
+      const cacheDb: JsonDB = new JsonDB(new Config('cache_buffer_jobs', true, false));
+      return new JobsCacheRepository(db, cacheDb);
+    }
+
+    return new JobsNormalRepository(db);
+  }
 };
 
 @Module({
@@ -24,10 +31,6 @@ const jobsRepository: Provider<JobsIRepository> = {
     JobsBatch,
     JobsService,
     jobsRepository,
-    {
-      provide: JsonDB,
-      useValue: db,
-    },
     {
       provide: APP_PIPE,
       useValue: jobsValidationPipe,

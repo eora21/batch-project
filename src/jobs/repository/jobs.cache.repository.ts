@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Job } from '../model/job.entity';
-import { Config, JsonDB } from 'node-json-db';
+import { JsonDB } from 'node-json-db';
 import { JobStatus } from '../model/job.status';
 import { JobsIRepository } from './jobs.interface.repository';
 import { JobsResponseDto } from '../dto/jobs.response.dto';
@@ -10,10 +10,8 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
   private readonly statusJobs: Map<JobStatus, Job[]> = new Map();
   private readonly idJobs: Map<string, Job> = new Map();
   private readonly titleJobs: Map<string, Job[]> = new Map();
-  private readonly cacheBufferDb: JsonDB;
 
-  constructor(private readonly db: JsonDB) {
-    this.cacheBufferDb = new JsonDB(new Config('cache_buffer_jobs', true, false));
+  constructor(private readonly db: JsonDB, private readonly cacheBufferDb: JsonDB) {
   }
 
   async onModuleInit(): Promise<void> {

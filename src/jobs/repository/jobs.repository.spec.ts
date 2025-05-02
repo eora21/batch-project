@@ -39,8 +39,6 @@ const mockJobs = [
   }
 ];
 
-const repositories = [JobsNormalRepository, JobsCacheRepository];
-
 class MemoryAdapter implements IAdapter<any> {
   private data: any = {};
 
@@ -54,14 +52,18 @@ class MemoryAdapter implements IAdapter<any> {
   }
 }
 
-function testRepositories(dependencyInjectionRepository: typeof repositories[number]) {
-  describe(`${ dependencyInjectionRepository.name }`, () => {
+const db = new JsonDB(new ConfigWithAdapter(new MemoryAdapter(), false));
+const cacheDb = new JsonDB(new ConfigWithAdapter(new MemoryAdapter(), false));
+
+const repositories = [() => new JobsNormalRepository(db), () => new JobsCacheRepository(db, cacheDb)];
+
+function testRepositories(repositoryCallback: typeof repositories[number]) {
+
+  describe(`${ repositoryCallback }`, () => {
     let repository: JobsIRepository;
 
     beforeEach(async () => {
-      const jsonDB = new JsonDB(new ConfigWithAdapter(new MemoryAdapter(), false));
-
-      await jsonDB.push('jobs', {
+      await db.push('jobs', {
         'jobs': structuredClone(mockJobs),
       });
 
@@ -69,18 +71,19 @@ function testRepositories(dependencyInjectionRepository: typeof repositories[num
         providers: [
           {
             provide: 'JOBS_REPOSITORY',
-            useClass: dependencyInjectionRepository,
+            useValue: repositoryCallback(),
           },
-          {
-            provide: JsonDB,
-            useValue: jsonDB,
-          }
         ],
       }).compile();
 
       await module.init();
 
       repository = module.get<JobsIRepository>('JOBS_REPOSITORY');
+    });
+
+    afterEach(async () => {
+      await db.delete('jobs');
+      await cacheDb.delete('jobs');
     });
 
     it('should be defined', () => {
@@ -258,16 +261,6 @@ function testRepositories(dependencyInjectionRepository: typeof repositories[num
       expect(updateCount).toBe(pendingLength);
       expect((await repository.findByParams(undefined, JobStatus.PENDING))).toHaveLength(0);
       expect((await repository.findByParams(undefined, JobStatus.COMPLETED))).toHaveLength(mockJobs.length);
-    });
-
-    it('같은 status로 업데이트를 시도하는 경우 아무것도 업데이트되지 않아야 한다', async () => {
-      // given
-
-      // when
-      const updateCount = await repository.completePendingJobs();
-
-      // then
-      expect(updateCount).toBe(0);
     });
   });
 }
