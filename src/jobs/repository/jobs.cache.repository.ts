@@ -69,7 +69,13 @@ export class JobsCacheRepository implements JobsIRepository, OnModuleInit {
   }
 
   async findById(id: string) {
-    return new JobsResponseDto(this.idJobs.get(id));
+    const job = this.idJobs.get(id);
+
+    if (job === undefined) {
+      return undefined;
+    }
+
+    return new JobsResponseDto(job);
   }
 
   async findAll() {
