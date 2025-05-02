@@ -15,20 +15,17 @@ describe('jobsService', () => {
   let service: JobsService;
 
   beforeAll(async () => {
-    const jsonDB = new JsonDB(new ConfigWithAdapter(new JsonAdapter(new NotWriteFileAdapter('jobs_700000.json', false)), false));
+    const db = new JsonDB(new ConfigWithAdapter(new JsonAdapter(new NotWriteFileAdapter('jobs_700000.json', false)), false));
+    const cacheBufferDb = new JsonDB(new ConfigWithAdapter(new JsonAdapter(new NotWriteFileAdapter('jobs_cache_buffer.json', false)), false));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JobsService,
         {
           provide: 'JOBS_REPOSITORY',
-          // useClass: JobsNormalRepository,
-          useClass: JobsCacheRepository,
+          // useValue: new JobsNormalRepository(db),
+          useValue: new JobsCacheRepository(db, cacheBufferDb),
         },
-        {
-          provide: JsonDB,
-          useValue: jsonDB,
-        }
       ],
     }).compile();
 
@@ -36,7 +33,7 @@ describe('jobsService', () => {
 
     service = module.get<JobsService>(JobsService);
 
-    await jsonDB.load();
+    await db.load();
   });
 
   it('should be defined', () => {
