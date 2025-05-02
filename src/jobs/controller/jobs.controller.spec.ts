@@ -157,4 +157,22 @@ describe(`jobsController`, () => {
       expect(response.status).toBe(200);
     });
   });
+
+  describe('title, status로 job 검색 시', () => {
+
+    afterEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('존재하지 않는 status라면 실패해야 한다', async () => {
+      // given
+
+      // when
+      const response = await request(app.getHttpServer())
+        .get('/jobs/search?status=wrong');
+
+      // then
+      expect(response.status).toBe(400);
+    });
+  });
 });
