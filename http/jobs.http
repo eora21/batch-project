@@ -1,0 +1,57 @@
+POST http://localhost:3000/jobs
+Content-Type: application/json
+
+{
+  "title": "제목",
+  "description": "내용"
+}
+
+###
+
+POST http://localhost:3000/jobs
+Content-Type: application/json
+
+{
+  "title": "제목"
+}
+
+###
+
+POST http://localhost:3000/jobs
+Content-Type: application/json
+
+{
+  "description": "내용"
+}
+
+###
+
+GET http://localhost:3000/jobs/01966cc3-2e18-704d-a306-e1723557b36b
+
+###
+
+GET http://localhost:3000/jobs/want-404
+
+###
+
+GET http://localhost:3000/jobs
+
+###
+
+GET http://localhost:3000/jobs/search?title=제목
+
+###
+
+GET http://localhost:3000/jobs/search?status=pending
+
+###
+
+GET http://localhost:3000/jobs/search?title=원하는 제목&status=completed
+
+###
+
+GET http://localhost:3000/jobs/search
+
+###
+
+GET http://localhost:3000/jobs/search?status=wrong
