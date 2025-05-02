@@ -227,6 +227,23 @@ function testRepositories(repositoryCallback: typeof repositories[number]) {
       expect(job).toHaveLength(0);
     });
 
+    it('저장된 값은 status update 이후 물리적인 DB에 기록되어야 한다', async () => {
+      // given
+      const job = await repository.save(new Job('새로운 job', '테스트용'));
+
+      // when
+      await repository.completePendingJobs();
+
+      // then
+      const jobs = await db.getObject<Job[]>('/jobs');
+      const afterUpdateJob = jobs.at(-1);
+
+      expect(afterUpdateJob.id).toEqual(job.id);
+      expect(afterUpdateJob.title).toEqual(job.title);
+      expect(afterUpdateJob.description).toEqual(job.description);
+      expect(afterUpdateJob.status).toEqual(JobStatus.COMPLETED);
+    });
+
     it('저장 시 id, title, status로 이를 확인할 수 있어야 한다', async () => {
       // given
 
